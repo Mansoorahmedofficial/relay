@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transfer unavailable | Relay</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="denied-page">
+  <main class="denied-card">
+    <a class="brand" href="{{ url_for('home') }}"><span class="brand-mark">R</span><span>relay<span class="brand-period">.</span></span></a>
+    <span class="eyebrow">NETWORK CHECK</span>
+    <h1>This transfer isn’t available here.</h1>
+    <p>{{ message }} Check that you’re on the same Wi-Fi or network as the person who created it.</p>
+    <a class="button button-dark" href="{{ url_for('home') }}">Back to Relay</a>
+  </main>
+</body>
+</html>

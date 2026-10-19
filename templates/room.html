@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f6f1">
+  <title>Transfer room | Relay</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="app-page" data-room-id="{{ room_id }}" data-max-upload-mb="{{ max_upload_mb }}" data-expires-at="{{ expires_at }}">
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('home') }}" aria-label="Relay home"><span class="brand-mark">R</span><span>relay<span class="brand-period">.</span></span></a>
+    <div class="topbar-status"><span class="status-dot"></span> Private room</div>
+  </header>
+  <main class="room-shell">
+    <div class="room-heading">
+      <div>
+        <a class="back-link" href="{{ url_for('home') }}">← All transfers</a>
+        <span class="eyebrow">YOUR TRANSFER ROOM</span>
+        <h1>Send it over.</h1>
+        <p class="lede">Drop files here and pick them up on another device on your network.</p>
+      </div>
+      <div class="expires-block"><span class="eyebrow">ROOM CLOSES IN</span><strong id="expiry-clock">24 hours</strong></div>
+    </div>
+
+    <section class="room-tools" aria-label="Transfer controls">
+      <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Choose or drop files to upload">
+        <input id="file-input" type="file" multiple hidden>
+        <div class="upload-symbol" aria-hidden="true">↑</div>
+        <h2>Drop files to send</h2>
+        <p>or <button class="text-button" id="browse-button" type="button">browse your device</button></p>
+        <span class="drop-limit">Up to {{ max_upload_mb }} MB per transfer · Any file type</span>
+      </div>
+      <div class="share-panel">
+        <span class="eyebrow">BRING ANOTHER DEVICE IN</span>
+        <h2>Open this room elsewhere.</h2>
+        <p>Use the same Wi-Fi or network, then open this private link on your other device.</p>
+        <div class="copy-row">
+          <input id="share-url" type="text" readonly aria-label="Private room link">
+          <button id="copy-link" class="button button-dark" type="button">Copy link</button>
+        </div>
+        <span class="room-code-label">Room code <code>{{ room_id }}</code></span>
+      </div>
+    </section>
+
+    <section class="files-section" aria-labelledby="files-heading">
+      <div class="section-heading">
+        <div><span class="eyebrow">READY TO PICK UP</span><h2 id="files-heading">Files in this room <span class="file-count" id="file-count">0</span></h2></div>
+        <span class="live-label"><span class="status-dot"></span> Live</span>
+      </div>
+      <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
+      <div id="file-list" class="file-list"><div class="empty-state"><span class="empty-mark">↗</span><p>Nothing here yet. Add a file to get started.</p></div></div>
+    </section>
+    <footer class="room-footer"><span>Room link is private to your public IP address.</span><a href="{{ url_for('home') }}">Make another transfer ↗</a></footer>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
