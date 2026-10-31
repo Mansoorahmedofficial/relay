@@ -221,20 +221,52 @@ if (roomId) {
   dropZone.addEventListener("drop", (event) =>
     upload([...event.dataTransfer.files]),
   );
-  document
-    .getElementById("copy-link")
-    .addEventListener("click", async (event) => {
-      try {
+  const copyLinkButton = document.getElementById("copy-link");
+  const copyStatus = document.getElementById("copy-status");
+  copyLinkButton.addEventListener("click", async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(roomUrl);
-        event.currentTarget.textContent = "Copied";
-        window.setTimeout(() => {
-          event.currentTarget.textContent = "Copy link";
-        }, 1800);
-      } catch {
+      } else {
         shareUrl.select();
-        document.execCommand("copy");
+        if (!document.execCommand("copy"))
+          throw new Error("Clipboard access is unavailable.");
       }
-    });
+      copyStatus.textContent = "Room link copied.";
+    } catch {
+      shareUrl.select();
+      copyStatus.textContent = "Copy unavailable. Select and copy the link above.";
+    }
+  });
+  const generateQrButton = document.getElementById("generate-qr");
+  const qrDisplay = document.getElementById("qr-display");
+  const qrImage = document.getElementById("room-qr");
+  const qrError = document.getElementById("qr-error");
+  const downloadQr = document.getElementById("download-qr");
+  qrImage.addEventListener("load", () => {
+    qrError.hidden = true;
+  });
+  qrImage.addEventListener("error", () => {
+    qrImage.removeAttribute("src");
+    downloadQr.removeAttribute("href");
+    qrError.hidden = false;
+  });
+  generateQrButton.addEventListener("click", () => {
+    if (qrDisplay.hidden) {
+      const qrUrl = generateQrButton.dataset.qrUrl;
+      if (!qrImage.hasAttribute("src")) {
+        qrImage.src = new URL(qrUrl, window.location.origin).href;
+        downloadQr.href = qrImage.src;
+      }
+      qrDisplay.hidden = false;
+      generateQrButton.textContent = "Hide QR code";
+      generateQrButton.setAttribute("aria-expanded", "true");
+    } else {
+      qrDisplay.hidden = true;
+      generateQrButton.textContent = "Generate QR code";
+      generateQrButton.setAttribute("aria-expanded", "false");
+    }
+  });
 
   updateExpiry();
   refreshFiles();

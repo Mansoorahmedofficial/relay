@@ -23,18 +23,45 @@
         <h2>Start a room</h2>
         <p>Create a private room, add your files, then open its link from another device on the same network.</p>
         <form action="{{ url_for('create_room') }}" method="post"><button class="button button-dark create-button" type="submit">Create transfer room <span aria-hidden="true">↗</span></button></form>
-        <span class="action-note"><span class="status-dot"></span> Up to {{ max_upload_mb }} MB · Closes after {{ share_ttl_hours }} hours</span>
+        <span class="action-note"><span class="status-dot"></span> Up to {{ "%.2g"|format(max_upload_gb) }} GB · Closes after {{ share_ttl_hours }} hours</span>
       </div>
       <div class="join-action">
-        <span class="eyebrow">HAVE A ROOM LINK?</span>
+        <span class="eyebrow">HAVE A ROOM CODE?</span>
         <h2>Join a transfer</h2>
-        <p>Paste the private link or room code shared from your other device.</p>
+        <p>Enter the six-digit room code shared from your other device.</p>
         <form class="join-form" action="{{ url_for('join_room') }}" method="post">
-          <label for="room-code">Private link or room code</label>
-          <div class="join-row"><input id="room-code" name="code" type="text" placeholder="Paste a link or enter a code" autocomplete="off" required><button class="button button-dark" type="submit">Join room <span aria-hidden="true">→</span></button></div>
-          {% if request.args.get('invalid') %}<span class="form-error">That link or room code doesn’t look right. Try again.</span>{% endif %}
+          <label for="room-code">Six-digit room code</label>
+          <div class="join-row"><input id="room-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="Enter 6 digits" autocomplete="off" required><button class="button button-dark" type="submit">Join room <span aria-hidden="true">→</span></button></div>
+          {% if request.args.get('invalid') %}<span class="form-error">Enter a valid six-digit room code.</span>{% endif %}
         </form>
       </div>
+    </section>
+    <section class="available-rooms" aria-labelledby="available-rooms-heading">
+      <div class="section-heading">
+        <div><span class="eyebrow">ON YOUR NETWORK</span><h2 id="available-rooms-heading">Available rooms <span class="file-count">{{ available_rooms|length }}</span></h2></div>
+      </div>
+      {% if available_rooms %}
+        <div class="available-room-list">
+          {% for room in available_rooms %}
+            <article class="available-room">
+              <div>
+                <strong>Room {{ room.id }}</strong>
+                {% if room.id|length == 6 and room.id.isdigit() %}
+                  <span>Code: {{ room.id }}</span>
+                {% else %}
+                  <span>Existing room · open using its link</span>
+                {% endif %}
+              </div>
+              <a class="room-open-link" href="{{ url_for('room', room_id=room.id) }}">Open room →</a>
+              <form action="{{ url_for('delete_room', room_id=room.id) }}" method="post" onsubmit="return confirm('Delete room {{ room.id }} and all its files?')">
+                <button class="room-delete-button" type="submit">Delete</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="rooms-empty">No active rooms are available on this network.</p>
+      {% endif %}
     </section>
     <section class="network-note">
       <span class="network-symbol" aria-hidden="true">↔</span>

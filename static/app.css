@@ -218,6 +218,47 @@ p {
   background: white;
   font: 11px var(--mono);
 }
+.copy-status {
+  min-height: 18px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.qr-generate-button {
+  width: fit-content;
+  margin-top: 6px;
+}
+.qr-display {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  text-align: center;
+}
+.qr-display[hidden] {
+  display: none;
+}
+.qr-display img {
+  display: block;
+  width: min(220px, 100%);
+  height: auto;
+  margin: 0 auto;
+}
+.qr-display p {
+  margin: 12px 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.qr-display .qr-error {
+  color: var(--red);
+}
+.qr-download-link {
+  color: var(--blue);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .button {
   min-height: 42px;
   padding: 0 16px;
@@ -479,6 +520,58 @@ p {
   background: var(--white);
   border: 1px solid var(--line);
 }
+.available-rooms {
+  margin-top: 40px;
+}
+.available-rooms .section-heading {
+  margin-bottom: 4px;
+}
+.available-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 65px;
+  border-bottom: 1px solid var(--line);
+}
+.available-room > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.available-room strong {
+  font: 500 13px var(--mono);
+}
+.available-room > div span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.room-open-link {
+  color: var(--blue);
+  font-size: 12px;
+}
+.available-room form {
+  margin: 0;
+}
+.room-delete-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--white);
+  color: var(--red);
+  cursor: pointer;
+}
+.room-delete-button:hover {
+  border-color: var(--red);
+  background: #fff1ef;
+}
+.rooms-empty {
+  margin: 0;
+  padding: 19px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .create-action,
 .join-action {
   min-height: 290px;
@@ -701,14 +794,14 @@ p {
   .expires-block .eyebrow {
     max-width: none;
   }
+  .room-footer {
+    flex-direction: column;
+  }
   .copy-row {
     flex-direction: column;
   }
   .copy-row input {
     min-height: 40px;
-  }
-  .room-footer {
-    flex-direction: column;
   }
   .denied-card {
     padding: 28px;
@@ -748,6 +841,9 @@ p {
   }
   .home-details > div {
     padding-right: 12px;
+  }
+  .available-room {
+    gap: 10px;
   }
 }
 

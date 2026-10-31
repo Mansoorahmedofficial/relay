@@ -29,7 +29,7 @@
         <div class="upload-symbol" aria-hidden="true">↑</div>
         <h2>Drop files to send</h2>
         <p>or <button class="text-button" id="browse-button" type="button">browse your device</button></p>
-        <span class="drop-limit">Up to {{ max_upload_mb }} MB per transfer · Any file type</span>
+        <span class="drop-limit">Up to {{ "%.2g"|format(max_upload_gb) }} GB per transfer · Any file type</span>
       </div>
       <div class="share-panel">
         <span class="eyebrow">BRING ANOTHER DEVICE IN</span>
@@ -38,6 +38,14 @@
         <div class="copy-row">
           <input id="share-url" type="text" readonly aria-label="Private room link">
           <button id="copy-link" class="button button-dark" type="button">Copy link</button>
+        </div>
+        <span id="copy-status" class="copy-status" role="status" aria-live="polite"></span>
+        <button id="generate-qr" class="button button-dark qr-generate-button" type="button" aria-controls="qr-display" aria-expanded="false" data-qr-url="{{ url_for('room_qr', room_id=room_id) }}">Generate QR code</button>
+        <div id="qr-display" class="qr-display" hidden>
+          <img id="room-qr" alt="QR code for this transfer room">
+          <p>Scan this code with the other device’s camera to open the room.</p>
+          <p id="qr-error" class="qr-error" role="alert" hidden>Could not generate the QR code. Check your connection and try again.</p>
+          <a id="download-qr" class="qr-download-link" download="relay-room-{{ room_id }}-qr.svg">Download QR code</a>
         </div>
         <span class="room-code-label">Room code <code>{{ room_id }}</code></span>
       </div>

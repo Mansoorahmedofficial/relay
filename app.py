@@ -1,3 +1,4 @@
+import io
 import ipaddress
 import os
 import re
@@ -7,27 +8,38 @@ import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import urlparse
 
-from flask import Flask, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
+import qrcode
+from qrcode.image.svg import SvgPathImage
+from flask import Flask, abort, jsonify, redirect, render_template, request, send_file, send_from_directory, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 def create_app(test_config=None):
     app = Flask(__name__)
+    max_upload_bytes = int(os.environ.get(
+        "MAX_UPLOAD_BYTES",
+        os.environ.get("MAX_CONTENT_LENGTH", 10 * 1024 * 1024 * 1024),
+    ))
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY", secrets.token_hex(32)),
         DATABASE=os.environ.get("DATABASE", str(
             Path(app.instance_path) / "relay.sqlite3")),
         UPLOAD_FOLDER=os.environ.get("UPLOAD_FOLDER", str(
             Path(app.instance_path) / "uploads")),
+        MAX_UPLOAD_BYTES=max_upload_bytes,
         MAX_CONTENT_LENGTH=int(os.environ.get(
-            "MAX_CONTENT_LENGTH", 2 * 1024 * 1024 * 1024)),
+            "MAX_CONTENT_LENGTH", max_upload_bytes + 1024 * 1024)),
         SHARE_TTL_HOURS=int(os.environ.get("SHARE_TTL_HOURS", 24)),
         TRUST_PROXY=os.environ.get("TRUST_PROXY", "0") == "1",
     )
     if test_config:
         app.config.update(test_config)
+        if (
+            "MAX_CONTENT_LENGTH" in test_config
+            and "MAX_UPLOAD_BYTES" not in test_config
+        ):
+            app.config["MAX_UPLOAD_BYTES"] = test_config["MAX_CONTENT_LENGTH"]
     if app.config["TRUST_PROXY"]:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 
@@ -145,10 +157,23 @@ def create_app(test_config=None):
 
     @app.get("/")
     def home():
+        visitor_ip = client_ip()
+        with connect_db() as db:
+            rooms = db.execute(
+                "SELECT id, created_at, expires_at, owner_ip FROM rooms "
+                "WHERE expires_at > ? ORDER BY created_at DESC",
+                (int(time.time()),),
+            ).fetchall()
+        available_rooms = [
+            dict(room)
+            for room in rooms
+            if visitor_ip and same_access_network(room["owner_ip"], visitor_ip)
+        ]
         return render_template(
             "index.html",
-            max_upload_mb=app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024),
+            max_upload_gb=app.config["MAX_UPLOAD_BYTES"] / (1024 ** 3),
             share_ttl_hours=app.config["SHARE_TTL_HOURS"],
+            available_rooms=available_rooms,
         )
 
     @app.post("/share")
@@ -156,27 +181,28 @@ def create_app(test_config=None):
         owner_ip = client_ip()
         if owner_ip is None:
             abort(400, description="Your network address could not be detected.")
-        room_id = secrets.token_urlsafe(18)
         now = int(time.time())
         expires_at = now + app.config["SHARE_TTL_HOURS"] * 60 * 60
         with connect_db() as db:
-            db.execute(
-                "INSERT INTO rooms (id, owner_ip, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                (room_id, owner_ip, now, expires_at),
-            )
+            for _ in range(10):
+                room_id = str(secrets.randbelow(900000) + 100000)
+                try:
+                    db.execute(
+                        "INSERT INTO rooms (id, owner_ip, created_at, expires_at) "
+                        "VALUES (?, ?, ?, ?)",
+                        (room_id, owner_ip, now, expires_at),
+                    )
+                    break
+                except sqlite3.IntegrityError:
+                    continue
+            else:
+                abort(503, description="A unique room code could not be generated.")
         return redirect(url_for("room", room_id=room_id))
 
     @app.post("/join")
     def join_room():
-        room_input = request.form.get("code", "").strip()
-        if "://" in room_input:
-            path = urlparse(room_input).path.strip("/").split("/")
-            room_id = path[1] if len(path) == 2 and path[0] == "r" else ""
-        elif room_input.startswith("/r/"):
-            room_id = room_input[3:].strip("/")
-        else:
-            room_id = room_input
-        if not re.fullmatch(r"[A-Za-z0-9_-]{24}", room_id):
+        room_id = request.form.get("code", "").strip()
+        if not re.fullmatch(r"[0-9]{6}", room_id):
             return redirect(url_for("home", invalid=1))
         return redirect(url_for("room", room_id=room_id))
 
@@ -187,8 +213,34 @@ def create_app(test_config=None):
             "room.html",
             room_id=room_id,
             expires_at=room_expiry(room_id),
-            max_upload_mb=app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024),
+            max_upload_mb=app.config["MAX_UPLOAD_BYTES"] // (1024 * 1024),
+            max_upload_gb=app.config["MAX_UPLOAD_BYTES"] / (1024 ** 3),
         )
+
+    @app.get("/r/<room_id>/qr")
+    def room_qr(room_id):
+        get_room(room_id)
+        room_url = request.url_root.rstrip("/") + url_for(
+            "room", room_id=room_id
+        )
+        qr = qrcode.QRCode(
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=8,
+            border=4,
+        )
+        qr.add_data(room_url)
+        qr.make(fit=True)
+        image = qr.make_image(image_factory=SvgPathImage)
+        output = io.BytesIO()
+        image.save(output)
+        output.seek(0)
+        response = send_file(
+            output,
+            mimetype="image/svg+xml",
+            download_name=f"room-{room_id}-qr.svg",
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     def room_expiry(room_id):
         with connect_db() as db:
@@ -286,6 +338,20 @@ def create_app(test_config=None):
                 (file_id, room_id),
             )
         return jsonify(deleted=True)
+
+    @app.post("/r/<room_id>/delete")
+    def delete_room(room_id):
+        get_room(room_id)
+        with connect_db() as db:
+            files = db.execute(
+                "SELECT stored_name FROM files WHERE room_id = ?", (room_id,)
+            ).fetchall()
+            db.execute("DELETE FROM files WHERE room_id = ?", (room_id,))
+            db.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
+        for file in files:
+            (Path(app.config["UPLOAD_FOLDER"]) /
+             file["stored_name"]).unlink(missing_ok=True)
+        return redirect(url_for("home"))
 
     @app.errorhandler(413)
     def request_too_large(_error):
